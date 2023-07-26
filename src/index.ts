@@ -42,6 +42,11 @@ app.use(Express.json());
 app.use(morgan("tiny"));
 
 //Route middleware
+app.get("/api/check", (req, res) => {
+    res.status(200).send({
+        status: "Online"
+    })
+})
 app.use("/api/user", userRouter);
 app.use("/api/blog", blogRouter);
 app.use("/api/category", categoryRouter);
@@ -55,7 +60,7 @@ app.use("/api/interact", interactRouter);
 //Create an Http server: Http.createServer(app)
 //Create io passing in the Http server: i
 
-export const localhostIP = "192.168.0.102";
+export const localhostIP = "192.168.0.103";
 const io = new Server(httpServer, {
     cors: {
         origin: `http://${localhostIP}:5173`,
@@ -73,7 +78,7 @@ io.use((socket, next) => {
 });
 
 httpServer.listen(3001, () => {
-    console.log("What sup, server is up: http://192.168.1.71:3001/api/category");
+    console.log(`What sup, server is up: http://${localhostIP}:3001/api/category`);
 });
 
 export { io };
