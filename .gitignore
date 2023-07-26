@@ -23,3 +23,5 @@ src/test.js
 *.njsproj
 *.sln
 *.sw?
+src/testMail.ts
+.env
