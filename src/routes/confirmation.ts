@@ -5,12 +5,21 @@ import jwt from "jsonwebtoken";
 
 confirmRouter.get("/:token", async (req, res) => {
   try {
-    const { _id } = jwt.verify(req.params.token, process.env.SECRET_TOKEN as string) as User;
-    await UserModel.findByIdAndUpdate(_id, {isValidated: true});
+    const res = jwt.verify(req.params.token, process.env.SECRET_TOKEN as string) as {
+      user: string,
+      iat: number,
+      exp: number
+    };
+    
+    await UserModel.findByIdAndUpdate(res.user, {isValidated: true});
   } catch (err) {
-    res.status(400).send(err);
+    console.log(err);
+    return res.status(400).send({
+      status: false,
+      message: "Validation expired!"
+    })
   }
-  return res.redirect(200, "http://127.0.0.1:5173/login");
+  return res.redirect(200, `${process.env.CLIENT}/login`);
 });
 
 export {confirmRouter};

@@ -39,7 +39,7 @@ const blogValidation = (dataObj: Blog) => {
     const dateTimeRegex = /\b(January|February|March|April|May|June|July|August|September|October|November|December)+ (0?[1-9]|[12][0-9]|3[01]), (?:19[7-9]\d|2\d{3})+/i;
     const authorSchema = Joi.object({
         _id: Joi.string().label("_id").allow(null, ''),
-        avatar: Joi.string().required(),
+        avatar: Joi.any().required(),
         name: Joi.string().required(),
         profession: Joi.string().required(),
         isAdmin: Joi.boolean().label("Is admin"),

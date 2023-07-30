@@ -55,15 +55,10 @@ app.use("/api/comment", commentRouter);
 app.use("/api/contact", contactRouter);
 app.use("/api/interact", interactRouter);
 
-
-//Create Express app: Express()
-//Create an Http server: Http.createServer(app)
-//Create io passing in the Http server: i
-
-export const localhostIP = "192.168.0.103";
+export const localhostIP = process.env.HOST;
 const io = new Server(httpServer, {
     cors: {
-        origin: `http://${localhostIP}:5173`,
+        origin: process.env.CLIENT,
     },
 });
 
@@ -78,7 +73,7 @@ io.use((socket, next) => {
 });
 
 httpServer.listen(3001, () => {
-    console.log(`What sup, server is up: http://${localhostIP}:3001/api/category`);
+    console.log(`What sup, server is up: ${localhostIP}/api/check`);
 });
 
 export { io };

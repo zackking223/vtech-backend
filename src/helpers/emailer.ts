@@ -1,7 +1,7 @@
 import nodemailer from "nodemailer";
 import jwt from "jsonwebtoken";
 
-export const emailer = (from : string, to : string, protocol : string, host : string, userId : string) => {
+export const emailer = async (from : string, to : string, protocol : string, host : string, userId : string) => {
   // Generate test SMTP service account from ethereal.email
   // Only needed if you don't have a real mail account for testing
   // let testAccount = await nodemailer.createTestAccount();
@@ -41,13 +41,13 @@ export const emailer = (from : string, to : string, protocol : string, host : st
     {
       expiresIn: '1d'
     },
-    (err, emailToken) => {
+    async (err, emailToken) => {
       if (err) {
         return console.log(err);
       }
 	    const serverUrl = `${protocol}://${host}/cf/${emailToken}`;
 
-      transporter.sendMail({
+      await transporter.sendMail({
         from,
         to,
         subject: "Vtech account confirmation 🤖",

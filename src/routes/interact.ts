@@ -4,8 +4,7 @@ import { UserModel } from "../models/User";
 import { BlogModel } from "../models/Blog";
 import { verifyToken } from "../helpers/verifyToken";
 import { NotificationModel } from "../models/Notification";
-import { deleteFile, uploadFile } from "../helpers/manageFile";
-import { localhostIP } from "..";
+import { deleteFile, deleteFromCloud, uploadAvatar, uploadToCloud } from "../helpers/manageFile";
 
 interactRouter.put("/bookmark", verifyToken, async (req, res) => {
   try {
@@ -262,7 +261,7 @@ interactRouter.get("/followed", async (req, res) => {
   }
 });
 
-interactRouter.put("/avatar", verifyToken, uploadFile.single("avatarFile"), async (req, res) => {
+interactRouter.put("/avatar", verifyToken, uploadAvatar.single("avatarFile"), async (req, res) => {
   try {
     if (!(req as CustomRequest).file) {
       return res.status(400).send({
@@ -272,14 +271,14 @@ interactRouter.put("/avatar", verifyToken, uploadFile.single("avatarFile"), asyn
       });
     };
 
-    const serverPath = `${req.protocol}://${localhostIP}:3001/public/uploads/avatars/`;
+    const serverPath = `${process.env.CLOUD_URL}/avatars/`;
     const fileName = (req as CustomRequest)?.file?.filename; //multer got us covered
 
     if (fileName) {
       const targetUser = await UserModel.findById((req as CustomRequest).user._id);
       const oldAvatar = targetUser?.avatar.url.split("/") as string[];
 
-      await deleteFile(oldAvatar[oldAvatar.length  - 1], "avatar");
+      await deleteFromCloud(oldAvatar[oldAvatar.length - 1], "avatar");
 
       await UserModel.findByIdAndUpdate((req as CustomRequest).user._id, {
         avatar: {
@@ -288,6 +287,8 @@ interactRouter.put("/avatar", verifyToken, uploadFile.single("avatarFile"), asyn
           left: req.body.avatar.left
         }
       });
+
+      await uploadToCloud(fileName, "avatar");
 
       return res.status(200).send({
         success: true,
@@ -302,6 +303,40 @@ interactRouter.put("/avatar", verifyToken, uploadFile.single("avatarFile"), asyn
       message: "Can't update avatar!"
     });
   }
+});
+
+
+interactRouter.get("/testuploadimage", async (req, res) => {
+  try {
+    await uploadToCloud('test.jpeg', "avatar");
+  } catch (err) {
+    console.log(err);
+    return res.status(400).send({
+      success: false,
+      message: "Can't upload!"
+    });
+  };
+
+  return res.status(200).send({
+    success: true,
+    message: "Uploaded!"
+  });
+});
+
+interactRouter.get("/testdeleteimage", async (req, res) => {
+  try {
+    await deleteFromCloud("test");
+  } catch (err) {
+    console.log(err);
+    return res.status(400).send({
+      success: false,
+      message: "Can't delete!",
+    });
+  }
+  return res.status(200).send({
+    success: true,
+    message: "Deleted!"
+  });
 });
 
 export { interactRouter };

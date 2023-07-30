@@ -8,8 +8,7 @@ import { verifyToken } from "../helpers/verifyToken";
 import { emailer } from "../helpers/emailer";
 import { BlogModel } from "../models/Blog";
 import { NotificationModel } from "../models/Notification";
-import { localhostIP } from "..";
-import { deleteFile, uploadFile } from "../helpers/manageFile";
+import { deleteFile, uploadAvatar, uploadToCloud } from "../helpers/manageFile";
 
 type TokenList = {
 	[key: string]: User
@@ -34,9 +33,10 @@ const removeToken = async (token: string, tokenList: TokenList) => {
 }
 
 //REGISTER
-userRouter.post('/register', uploadFile.single("avatarFile"), async function (req, res) {
+userRouter.post('/register', uploadAvatar.single("avatarFile"), async function (req, res) {
 	//Validate user's request (data) before making a new user
 	const { error } = registerValidation(req.body);
+
 	if (!(req as CustomRequest).file) {
 		return res.status(400).send({
 			success: false,
@@ -45,7 +45,7 @@ userRouter.post('/register', uploadFile.single("avatarFile"), async function (re
 		});
 	}
 	// const serverPath = `${req.protocol}://${req.get("host")}/public/uploads/avatars/`;
-	const serverPath = `${req.protocol}://${localhostIP}:3001/public/uploads/avatars/`;
+	const serverPath = `${process.env.CLOUD_URL}/avatars/`;
 	const fileName = (req as CustomRequest)?.file.filename; //multer got us covered
 
 	if (error) {
@@ -92,6 +92,7 @@ userRouter.post('/register', uploadFile.single("avatarFile"), async function (re
 	try {
 		const savedUser = await user.save();
 		await emailer(FROM, req.body.email, req.protocol, req.get("host") as string, savedUser._id.toString());
+		await uploadToCloud(fileName, "avatar");
 		res.status(200).send({
 			success: true,
 			user: savedUser._id,
@@ -107,8 +108,6 @@ userRouter.post('/register', uploadFile.single("avatarFile"), async function (re
 });
 
 const createToken = async (user: User, option: "access" | "refresh" = "access") => {
-	console.log("142 - auth.ts:");
-	// console.log(user);
 	if (option === "access") {
 		const accessToken = await jwt.sign(
 			{ user },
@@ -151,6 +150,13 @@ userRouter.post("/login", async function (req, res) {
 		source: "password"
 	});
 
+	if (!user.isValidated) {
+		return res.status(400).json({
+			success: false,
+			message: "Please check your email to validate account!"
+		})
+	}
+
 	let userData = user.toObject();
 	userData["password"] = "";
 
@@ -167,6 +173,7 @@ userRouter.post("/login", async function (req, res) {
 		user: { ...user._doc, notifications: notificationArray },
 		token,
 		refreshToken,
+		message: "Login successfully!"
 	});
 });
 

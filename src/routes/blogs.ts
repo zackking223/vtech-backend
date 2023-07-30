@@ -8,7 +8,7 @@ import { escapeStringRegexp } from "../helpers/filterObject";
 import { UserModel } from "../models/User";
 import { NotificationModel } from "../models/Notification";
 import { io, localhostIP } from "..";
-import { deleteFile, uploadFile } from "../helpers/manageFile";
+import { deleteFile, deleteFromCloud, uploadAttach, uploadCover, uploadToCloud} from "../helpers/manageFile";
 import { CategoryModel } from "../models/Category";
 
 blogRouter.get("/main", async (req, res) => {
@@ -262,7 +262,7 @@ blogRouter.get("/attachimages/:blogId", verifyToken, async (req, res) => {
 	}
 });
 
-blogRouter.post("/uploadimage", verifyToken, uploadFile.single("image"), async (req, res) => {
+blogRouter.post("/uploadimage", verifyToken, uploadAttach.single("image"), async (req, res) => {
 	if (!(req as CustomRequest).file) {
 		return res.status(400).send({
 			success: false,
@@ -271,7 +271,7 @@ blogRouter.post("/uploadimage", verifyToken, uploadFile.single("image"), async (
 		});
 	}
 
-	const serverPath = `${req.protocol}://${localhostIP}:3001/public/uploads/blogs/`;
+	const serverPath = `${process.env.CLOUD_URL}/blogs/attaches/`;
 	const fileName = (req as CustomRequest)?.file.filename; //multer got us covered
 
 	try {
@@ -321,6 +321,8 @@ blogRouter.post("/uploadimage", verifyToken, uploadFile.single("image"), async (
 				imageUrl: `${serverPath}${fileName}`
 			}).save();
 
+			await uploadToCloud(fileName, "attach");
+
 			return res.status(200).send({
 				success: true,
 				message: "File received",
@@ -331,7 +333,7 @@ blogRouter.post("/uploadimage", verifyToken, uploadFile.single("image"), async (
 		}
 	} catch (err) {
 		console.log(err);
-		await deleteFile(fileName, "blog");
+		await deleteFile(fileName, "attach");
 		return res.status(400).send({
 			success: false,
 			message: "Failed to upload!"
@@ -345,7 +347,7 @@ blogRouter.delete("/removeimage/:id", verifyToken, async (req, res) => {
 	try {
 		const result = await AttachImgModel.findOneAndDelete({ _id: req.params.id, uploader: (req as CustomRequest).user._id });
 
-		await deleteFile(result?.fileName as string, "blog");
+		await deleteFromCloud(result?.fileName as string, "attach");
 
 		return res.status(200).send({
 			success: true,
@@ -361,7 +363,7 @@ blogRouter.delete("/removeimage/:id", verifyToken, async (req, res) => {
 	}
 });
 
-blogRouter.post("/", verifyToken, uploadFile.single("imageFile"), async (req, res) => {
+blogRouter.post("/", verifyToken, uploadCover.single("imageFile"), async (req, res) => {
 	const { error } = blogValidation(req.body);
 
 	if (!(req as CustomRequest).file) {
@@ -372,12 +374,11 @@ blogRouter.post("/", verifyToken, uploadFile.single("imageFile"), async (req, re
 		});
 	};
 
-	// const serverPath = `${req.protocol}://${req.get("host")}/public/uploads/blogs/`;
-	const serverPath = `${req.protocol}://${localhostIP}:3001/public/uploads/blogs/`;
+	const serverPath = `${process.env.CLOUD_URL}/blogs/covers/`;
 	const fileName = (req as CustomRequest)?.file.filename; //multer got us covered
 
 	if (error) {
-		await deleteFile(fileName, "blog");
+		await deleteFile(fileName, "cover");
 
 		return res.status(400).json({
 			success: false,
@@ -403,7 +404,7 @@ blogRouter.post("/", verifyToken, uploadFile.single("imageFile"), async (req, re
 
 	try {
 		const result = await blog.save();
-
+		await uploadToCloud(fileName, "cover");
 		await UserModel.findByIdAndUpdate((req as CustomRequest).user._id, {
 			"$inc": {
 				postsCount: 1
@@ -434,7 +435,7 @@ blogRouter.post("/", verifyToken, uploadFile.single("imageFile"), async (req, re
 			data: result._id
 		});
 	} catch (err) {
-		await deleteFile(fileName, "blog");
+		await deleteFile(fileName, "cover");
 		console.log(err);
 		return res.status(400).json({
 			success: false,
@@ -665,7 +666,7 @@ blogRouter.put("/vote", verifyToken, async (req, res) => {
 	}
 });
 
-blogRouter.put("", verifyToken, uploadFile.single("imageFile"), async (req, res) => {
+blogRouter.put("", verifyToken, uploadCover.single("imageFile"), async (req, res) => {
 	const { error } = blogValidation(req.body);
 
 	if (!(req as CustomRequest).file && !req.body.coverImage) {
@@ -676,13 +677,12 @@ blogRouter.put("", verifyToken, uploadFile.single("imageFile"), async (req, res)
 		});
 	};
 
+	const serverPath = `${process.env.CLOUD_URL}/blogs/covers/`;
 
-	// const serverPath = `${req.protocol}://${req.get("host")}/public/uploads/blogs/`;
-	const serverPath = `${req.protocol}://${localhostIP}:3001/public/uploads/blogs/`;
 	const fileName = (req as CustomRequest)?.file?.filename; //multer got us covered
 
 	if (error && fileName) {
-		await deleteFile(fileName, "blog");
+		await deleteFile(fileName, "cover");
 
 		return res.status(400).json({
 			success: false,
@@ -703,7 +703,8 @@ blogRouter.put("", verifyToken, uploadFile.single("imageFile"), async (req, res)
 
 		if (fileName) {
 			const coverImageName = targetBlog?.coverImage.split("/") as string[];
-			await deleteFile(coverImageName[coverImageName?.length - 1] as string, "blog");
+			await deleteFromCloud(coverImageName[coverImageName?.length - 1] as string, "cover");
+			await uploadToCloud(fileName, "cover");
 		}
 
 		await BlogModel.findOneAndUpdate({
@@ -854,7 +855,7 @@ blogRouter.delete("/:blogId", verifyToken, async (req, res) => {
 
 			if (result?.coverImage !== "") {
 				const coverImageName = result?.coverImage.split("/") as string[];
-				await deleteFile(coverImageName[coverImageName?.length - 1] as string, "blog");
+				await deleteFile(coverImageName[coverImageName?.length - 1] as string, "cover");
 			}
 
 			await UserModel.findByIdAndUpdate((req as CustomRequest).user._id, {
@@ -884,7 +885,8 @@ blogRouter.delete("/:blogId", verifyToken, async (req, res) => {
 
 			if (result?.coverImage !== "") {
 				const coverImageName = result?.coverImage.split("/") as string[];
-				await deleteFile(coverImageName[coverImageName?.length - 1] as string, "blog");
+				// await deleteFile(coverImageName[coverImageName?.length - 1] as string, "cover");
+				await deleteFromCloud(coverImageName[coverImageName?.length - 1] as string, "cover");
 			}
 
 			return res.status(200).send({
