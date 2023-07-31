@@ -25,3 +25,4 @@ src/test.js
 *.sw?
 src/testMail.ts
 .env
+src/helpers/emailtemplate.html
