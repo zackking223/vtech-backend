@@ -7,8 +7,8 @@ import { AttachImgModel } from "../models/AttachImg";
 import { escapeStringRegexp } from "../helpers/filterObject";
 import { UserModel } from "../models/User";
 import { NotificationModel } from "../models/Notification";
-import { io, localhostIP } from "..";
-import { deleteFile, deleteFromCloud, uploadAttach, uploadCover, uploadToCloud} from "../helpers/manageFile";
+import { io } from "..";
+import { convertFile, deleteFile, deleteFromCloud, uploadFile, uploadToCloud2} from "../helpers/manageFile";
 import { CategoryModel } from "../models/Category";
 
 blogRouter.get("/main", async (req, res) => {
@@ -262,7 +262,7 @@ blogRouter.get("/attachimages/:blogId", verifyToken, async (req, res) => {
 	}
 });
 
-blogRouter.post("/uploadimage", verifyToken, uploadAttach.single("image"), async (req, res) => {
+blogRouter.post("/uploadimage", verifyToken, uploadFile.single("image"), async (req, res) => {
 	if (!(req as CustomRequest).file) {
 		return res.status(400).send({
 			success: false,
@@ -272,7 +272,7 @@ blogRouter.post("/uploadimage", verifyToken, uploadAttach.single("image"), async
 	}
 
 	const serverPath = `${process.env.CLOUD_URL}/blogs/attaches/`;
-	const fileName = (req as CustomRequest)?.file.filename; //multer got us covered
+	const {fileName, fileURI} = await convertFile(req.file!); //multer got us covered
 
 	try {
 		if (!req.body.blogid) {
@@ -321,7 +321,7 @@ blogRouter.post("/uploadimage", verifyToken, uploadAttach.single("image"), async
 				imageUrl: `${serverPath}${fileName}`
 			}).save();
 
-			await uploadToCloud(fileName, "attach");
+			await uploadToCloud2(fileURI, fileName, "attach");
 
 			return res.status(200).send({
 				success: true,
@@ -363,7 +363,7 @@ blogRouter.delete("/removeimage/:id", verifyToken, async (req, res) => {
 	}
 });
 
-blogRouter.post("/", verifyToken, uploadCover.single("imageFile"), async (req, res) => {
+blogRouter.post("/", verifyToken, uploadFile.single("imageFile"), async (req, res) => {
 	const { error } = blogValidation(req.body);
 
 	if (!(req as CustomRequest).file) {
@@ -375,7 +375,7 @@ blogRouter.post("/", verifyToken, uploadCover.single("imageFile"), async (req, r
 	};
 
 	const serverPath = `${process.env.CLOUD_URL}/blogs/covers/`;
-	const fileName = (req as CustomRequest)?.file.filename; //multer got us covered
+	const {fileName, fileURI} = await convertFile(req.file!); //multer got us covered
 
 	if (error) {
 		await deleteFile(fileName, "cover");
@@ -404,7 +404,7 @@ blogRouter.post("/", verifyToken, uploadCover.single("imageFile"), async (req, r
 
 	try {
 		const result = await blog.save();
-		await uploadToCloud(fileName, "cover");
+		await uploadToCloud2(fileURI, fileName, "cover");
 		await UserModel.findByIdAndUpdate((req as CustomRequest).user._id, {
 			"$inc": {
 				postsCount: 1
@@ -666,7 +666,7 @@ blogRouter.put("/vote", verifyToken, async (req, res) => {
 	}
 });
 
-blogRouter.put("", verifyToken, uploadCover.single("imageFile"), async (req, res) => {
+blogRouter.put("", verifyToken, uploadFile.single("imageFile"), async (req, res) => {
 	const { error } = blogValidation(req.body);
 
 	if (!(req as CustomRequest).file && !req.body.coverImage) {
@@ -679,11 +679,9 @@ blogRouter.put("", verifyToken, uploadCover.single("imageFile"), async (req, res
 
 	const serverPath = `${process.env.CLOUD_URL}/blogs/covers/`;
 
-	const fileName = (req as CustomRequest)?.file?.filename; //multer got us covered
+	const {fileName, fileURI} = await convertFile(req.file!); //multer got us covered
 
 	if (error && fileName) {
-		await deleteFile(fileName, "cover");
-
 		return res.status(400).json({
 			success: false,
 			message: error.details[0].message,
@@ -704,7 +702,7 @@ blogRouter.put("", verifyToken, uploadCover.single("imageFile"), async (req, res
 		if (fileName) {
 			const coverImageName = targetBlog?.coverImage.split("/") as string[];
 			await deleteFromCloud(coverImageName[coverImageName?.length - 1] as string, "cover");
-			await uploadToCloud(fileName, "cover");
+			await uploadToCloud2(fileURI, fileName, "cover");
 		}
 
 		await BlogModel.findOneAndUpdate({

@@ -16,6 +16,19 @@ export const FILE_TYPE_MAP = {
 	"image/webp": "webp"
 }
 
+export const convertFile = async (file: Express.Multer.File) => {
+	const b64 = Buffer.from(file.buffer).toString("base64");
+	let dataURI = "data:" + file.mimetype + ";base64," + b64;
+
+	const extension = FILE_TYPE_MAP[file.mimetype as "image/png" | "image/jpg" | "image/jpeg" | "image/webp"];;
+	const fileName = file.originalname.replace(' ', '-');
+
+	return {
+		fileName: `${fileName.substring(0, fileName.lastIndexOf('.'))}-${Date.now()}.${extension}`,
+		fileURI: dataURI
+	}
+}
+
 export const deleteFile = async (fileName: string, option: "avatar" | "cover" | "attach" = "avatar") => {
 	let dirPath = path.join(__dirname, '../../public/uploads/avatars/');
 	if (option === "cover") {
@@ -31,7 +44,6 @@ export const deleteFile = async (fileName: string, option: "avatar" | "cover" | 
 	} catch (error) {
 		console.log(error);
 	}
-	//console.log(fileName + " deleted");
 }
 
 export const uploadToCloud = async (filename: string, option: "avatar" | "cover" | "attach" = "avatar") => {
@@ -55,13 +67,41 @@ export const uploadToCloud = async (filename: string, option: "avatar" | "cover"
 
 		},
 		async function (error, result) {
+			if (error) console.log(error);
+
 			if (result) {
 				await deleteFile(filename, option);
 			}
 		});
 }
 
-export const deleteFromCloud = async (fileName: string, option : "avatar" | "cover" | "attach" = "avatar") => {
+export const uploadToCloud2 = async (fileUri: string, filename: string, option: "avatar" | "cover" | "attach" = "avatar") => {
+	let folder = "avatars"
+	if (option === "attach") {
+		folder = "blogs/attaches"
+	} else if (option === "cover") {
+		folder = "blogs/covers"
+	}
+
+	await cloudinary.uploader.upload(fileUri,
+		{
+			public_id: filename.split(".")[0],
+			folder: folder,
+			transformation: {
+				format: "png"
+			},
+
+		},
+		async function (error, result) {
+			if (error) console.log(error.message);
+
+			if (result) {
+
+			}
+		});
+}
+
+export const deleteFromCloud = async (fileName: string, option: "avatar" | "cover" | "attach" = "avatar") => {
 	let public_id = `avatars/${fileName}`;
 
 	if (option === "attach") {
@@ -69,14 +109,15 @@ export const deleteFromCloud = async (fileName: string, option : "avatar" | "cov
 	} else if (option === "cover") {
 		public_id = `blogs/covers/${fileName}`;
 	}
-	
+
 	await cloudinary.uploader.destroy(public_id, {},
 		function (error, result) {
-			
+			if (error) console.log(error);
+			if (result) console.log(result);
 		});
 }
 
-export const uploadAvatar = multer({
+export const uploadDisk = multer({
 	storage: multer.diskStorage({
 		destination: function (req, file, cb) {
 			const isValid = FILE_TYPE_MAP[file.mimetype as "image/png" | "image/jpg" | "image/jpeg" | "image/webp"];
@@ -94,38 +135,5 @@ export const uploadAvatar = multer({
 	})
 });
 
-export const uploadCover = multer({
-	storage: multer.diskStorage({
-		destination: function (req, file, cb) {
-			const isValid = FILE_TYPE_MAP[file.mimetype as "image/png" | "image/jpg" | "image/jpeg" | "image/webp"];
-			let uploadStatus: Error | null = new Error("Incorrect file type!");
-
-			if (isValid) uploadStatus = null;
-
-			cb(uploadStatus, "public/uploads/blogs/covers");
-		},
-		filename: function (req, file, cb) {
-			const extension = FILE_TYPE_MAP[file.mimetype as "image/png" | "image/jpg" | "image/jpeg" | "image/webp"];;
-			const fileName = file.originalname.replace(' ', '-');
-			cb(null, `${fileName.substring(0, fileName.lastIndexOf('.'))}-${Date.now()}.${extension}`);
-		}
-	})
-});
-
-export const uploadAttach = multer({
-	storage: multer.diskStorage({
-		destination: function (req, file, cb) {
-			const isValid = FILE_TYPE_MAP[file.mimetype as "image/png" | "image/jpg" | "image/jpeg" | "image/webp"];
-			let uploadStatus: Error | null = new Error("Incorrect file type!");
-
-			if (isValid) uploadStatus = null;
-
-			cb(uploadStatus, "public/uploads/blogs/attaches");
-		},
-		filename: function (req, file, cb) {
-			const extension = FILE_TYPE_MAP[file.mimetype as "image/png" | "image/jpg" | "image/jpeg" | "image/webp"];;
-			const fileName = file.originalname.replace(' ', '-');
-			cb(null, `${fileName.substring(0, fileName.lastIndexOf('.'))}-${Date.now()}.${extension}`);
-		}
-	})
-});
+const virtualStorage = multer.memoryStorage();
+export const uploadFile = multer({ storage: virtualStorage });

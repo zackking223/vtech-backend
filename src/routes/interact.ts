@@ -1,10 +1,13 @@
 import express from "express";
+import bcrypt from "bcryptjs";
 const interactRouter = express.Router();
 import { UserModel } from "../models/User";
 import { BlogModel } from "../models/Blog";
 import { verifyToken } from "../helpers/verifyToken";
 import { NotificationModel } from "../models/Notification";
-import { deleteFile, deleteFromCloud, uploadAvatar, uploadToCloud } from "../helpers/manageFile";
+import { convertFile, deleteFromCloud, uploadFile, uploadToCloud, uploadToCloud2 } from "../helpers/manageFile";
+import { otpModel } from "../models/OTP";
+import { confirmEmail } from "../helpers/emailer";
 
 interactRouter.put("/bookmark", verifyToken, async (req, res) => {
   try {
@@ -261,7 +264,7 @@ interactRouter.get("/followed", async (req, res) => {
   }
 });
 
-interactRouter.put("/avatar", verifyToken, uploadAvatar.single("avatarFile"), async (req, res) => {
+interactRouter.put("/avatar", verifyToken, uploadFile.single("avatarFile"), async (req, res) => {
   try {
     if (!(req as CustomRequest).file) {
       return res.status(400).send({
@@ -272,9 +275,10 @@ interactRouter.put("/avatar", verifyToken, uploadAvatar.single("avatarFile"), as
     };
 
     const serverPath = `${process.env.CLOUD_URL}/avatars/`;
-    const fileName = (req as CustomRequest)?.file?.filename; //multer got us covered
 
-    if (fileName) {
+    if (req.file) {
+      const { fileName, fileURI } = await convertFile(req.file);
+
       const targetUser = await UserModel.findById((req as CustomRequest).user._id);
       const oldAvatar = targetUser?.avatar.url.split("/") as string[];
 
@@ -288,7 +292,7 @@ interactRouter.put("/avatar", verifyToken, uploadAvatar.single("avatarFile"), as
         }
       });
 
-      await uploadToCloud(fileName, "avatar");
+      await uploadToCloud2(fileURI, fileName, "avatar");
 
       return res.status(200).send({
         success: true,
@@ -305,38 +309,87 @@ interactRouter.put("/avatar", verifyToken, uploadAvatar.single("avatarFile"), as
   }
 });
 
-
-interactRouter.get("/testuploadimage", async (req, res) => {
+interactRouter.post("/otp", verifyToken, async (req, res) => {
   try {
-    await uploadToCloud('test.jpeg', "avatar");
-  } catch (err) {
+
+    let subject = "";
+    let description = "";
+    let payload = "";
+
+    if (req.body.action === "change_password") {
+      
+      subject = "Vtech | Change your password 🤖";
+      description = `Dear ${(req as CustomRequest).user.name}, click the button down bellow to confirm changing your password. (This request will expired in 30 minutes!)`;
+      //Hash the password
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(req.body.payload, salt);
+      payload = hashedPassword
+    
+    } else if (req.body.action === "validate_user") {
+      
+      subject = "Vtech | Account confirmation 🤖";
+      description = `Dear ${(req as CustomRequest).user.name}, click the button down bellow to validate your account. (This request will expired in 30 minutes!)`;
+    
+    }
+
+    const result = await new otpModel({
+      request_user: (req as CustomRequest).user._id,
+      action: req.body.action,
+      payload
+    }).save();
+
+    await confirmEmail(
+      (req as CustomRequest).user.email!,
+      `${process.env.HOST}/api/interact/otp?id=${result._id}`,
+      subject,
+      description
+    );
+
+    return res.status(200).send({
+      success: true,
+      message: "OTP created!",
+      data: result._id
+    });
+  } catch (err: any) {
     console.log(err);
     return res.status(400).send({
       success: false,
-      message: "Can't upload!"
-    });
-  };
-
-  return res.status(200).send({
-    success: true,
-    message: "Uploaded!"
-  });
+      message: "Can't create OTP!"
+    })
+  }
 });
 
-interactRouter.get("/testdeleteimage", async (req, res) => {
+interactRouter.get("/otp", async (req, res) => {
   try {
-    await deleteFromCloud("test");
+    const result = await otpModel.findByIdAndDelete(req.query.id);
+    let message = "";
+    if (result) {
+      if (result.action === "change_password") {
+        await UserModel.findByIdAndUpdate(result.request_user, {
+          password: result.payload
+        });
+        message = "Password changed!"
+      }
+
+      return res.status(200).send({
+        success: true,
+        message
+      });
+    } else {
+      return res.status(200).json({
+        success: false,
+        message: "OTP expired!"
+      })
+    }
+
   } catch (err) {
     console.log(err);
+
     return res.status(400).send({
       success: false,
-      message: "Can't delete!",
+      message: "Something went wrong!"
     });
   }
-  return res.status(200).send({
-    success: true,
-    message: "Deleted!"
-  });
 });
 
 export { interactRouter };
