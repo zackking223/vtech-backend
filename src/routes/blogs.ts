@@ -8,26 +8,26 @@ import { escapeStringRegexp } from "../helpers/filterObject";
 import { UserModel } from "../models/User";
 import { NotificationModel } from "../models/Notification";
 import { io } from "..";
-import { convertFile, deleteFile, deleteFromCloud, uploadFile, uploadToCloud2} from "../helpers/manageFile";
+import { convertFile, deleteFile, deleteFromCloud, uploadFile, uploadToCloud2 } from "../helpers/manageFile";
 import { CategoryModel } from "../models/Category";
 
 blogRouter.get("/main", async (req, res) => {
 	try {
 		const latests = await BlogModel.find().sort({ "time": "desc" })
-		.limit(parseInt(req.query.limit as string)).skip(parseInt(req.query.skip as string))
-		.select({
-			content: 0,
-			comments: 0,
-			likedBy: 0,
-			dislikedBy: 0
-		}).populate({
-			path: "author",
-			select: {
-				name: 1
-			}
-		});
-		
-		const mostLikes = await BlogModel.find({limit: 5}).sort({ "likesCount": "desc" }).select({
+			.limit(parseInt(req.query.limit as string)).skip(parseInt(req.query.skip as string))
+			.select({
+				content: 0,
+				comments: 0,
+				likedBy: 0,
+				dislikedBy: 0
+			}).populate({
+				path: "author",
+				select: {
+					name: 1
+				}
+			});
+
+		const mostLikes = await BlogModel.find({ limit: 5 }).sort({ "likesCount": "desc" }).select({
 			content: 0,
 			comments: 0,
 			likedBy: 0,
@@ -61,16 +61,16 @@ blogRouter.get("/main", async (req, res) => {
 blogRouter.get("/bookmarked", verifyToken, async (req, res) => {
 	try {
 		const result = await UserModel.findById(req.query.id)
-		.limit(parseInt(req.query.limit as string)).skip(parseInt(req.query.skip as string))
-		.populate({
-			path: "bookmark",
-			populate: {
-				path: "author",
-				select: {
-					name: 1
+			.limit(parseInt(req.query.limit as string)).skip(parseInt(req.query.skip as string))
+			.populate({
+				path: "bookmark",
+				populate: {
+					path: "author",
+					select: {
+						name: 1
+					}
 				}
-			}
-		});
+			});
 
 		return res.status(200).send({
 			success: true,
@@ -89,18 +89,18 @@ blogRouter.get("/bookmarked", verifyToken, async (req, res) => {
 blogRouter.get("/mostlikes", async (req, res) => {
 	try {
 		const result = await BlogModel.find().sort({ "likesCount": "desc" })
-		.limit(parseInt(req.query.limit as string)).skip(parseInt(req.query.skip as string))
-		.select({
-			content: 0,
-			comments: 0,
-			likedBy: 0,
-			dislikedBy: 0
-		}).populate({
-			path: "author",
-			select: {
-				name: 1
-			}
-		});
+			.limit(parseInt(req.query.limit as string)).skip(parseInt(req.query.skip as string))
+			.select({
+				content: 0,
+				comments: 0,
+				likedBy: 0,
+				dislikedBy: 0
+			}).populate({
+				path: "author",
+				select: {
+					name: 1
+				}
+			});
 
 		return res.status(200).send({
 			success: true,
@@ -119,18 +119,18 @@ blogRouter.get("/mostlikes", async (req, res) => {
 blogRouter.get("/mostviews", async (req, res) => {
 	try {
 		const result = await BlogModel.find().sort({ "viewsCount": "desc" })
-		.limit(parseInt(req.query.limit as string)).skip(parseInt(req.query.skip as string))
-		.select({
-			content: 0,
-			comments: 0,
-			likedBy: 0,
-			dislikedBy: 0
-		}).populate({
-			path: "author",
-			select: {
-				name: 1
-			}
-		});
+			.limit(parseInt(req.query.limit as string)).skip(parseInt(req.query.skip as string))
+			.select({
+				content: 0,
+				comments: 0,
+				likedBy: 0,
+				dislikedBy: 0
+			}).populate({
+				path: "author",
+				select: {
+					name: 1
+				}
+			});
 
 		return res.status(200).send({
 			success: true,
@@ -149,18 +149,18 @@ blogRouter.get("/mostviews", async (req, res) => {
 blogRouter.get("/latests", async (req, res) => {
 	try {
 		const result = await BlogModel.find().sort({ "time": "desc" })
-		.limit(parseInt(req.query.limit as string)).skip(parseInt(req.query.skip as string))
-		.select({
-			content: 0,
-			comments: 0,
-			likedBy: 0,
-			dislikedBy: 0
-		}).populate({
-			path: "author",
-			select: {
-				name: 1
-			}
-		});
+			.limit(parseInt(req.query.limit as string)).skip(parseInt(req.query.skip as string))
+			.select({
+				content: 0,
+				comments: 0,
+				likedBy: 0,
+				dislikedBy: 0
+			}).populate({
+				path: "author",
+				select: {
+					name: 1
+				}
+			});
 
 		return res.status(200).send({
 			success: true,
@@ -179,19 +179,19 @@ blogRouter.get("/latests", async (req, res) => {
 blogRouter.get("/all", async (req, res) => {
 	try {
 		const result = await BlogModel.find()
-		.limit(parseInt(req.query.limit as string))
-		.skip(parseInt(req.query.skip as string))
-		.select({
-			content: 0,
-			comments: 0,
-			likedBy: 0,
-			dislikedBy: 0
-		}).populate({
-			path: "author",
-			select: {
-				name: 1
-			}
-		});
+			.limit(parseInt(req.query.limit as string))
+			.skip(parseInt(req.query.skip as string))
+			.select({
+				content: 0,
+				comments: 0,
+				likedBy: 0,
+				dislikedBy: 0
+			}).populate({
+				path: "author",
+				select: {
+					name: 1
+				}
+			});
 
 		return res.status(200).send({
 			success: true,
@@ -272,7 +272,7 @@ blogRouter.post("/uploadimage", verifyToken, uploadFile.single("image"), async (
 	}
 
 	const serverPath = `${process.env.CLOUD_URL}/blogs/attaches/`;
-	const {fileName, fileURI} = await convertFile(req.file!); //multer got us covered
+	const { fileName, fileURI } = await convertFile(req.file!); //multer got us covered
 
 	try {
 		if (!req.body.blogid) {
@@ -306,6 +306,8 @@ blogRouter.post("/uploadimage", verifyToken, uploadFile.single("image"), async (
 				imageUrl: `${serverPath}${fileName}`
 			}).save();
 
+			await uploadToCloud2(fileURI, fileName, "attach");
+
 			return res.status(200).send({
 				success: true,
 				message: "File received",
@@ -313,7 +315,9 @@ blogRouter.post("/uploadimage", verifyToken, uploadFile.single("image"), async (
 				data: result._id,
 				source: "Blog content"
 			});
+
 		} else {
+
 			await new AttachImgModel({
 				blogId: req.body.blogid,
 				fileName: fileName,
@@ -375,7 +379,7 @@ blogRouter.post("/", verifyToken, uploadFile.single("imageFile"), async (req, re
 	};
 
 	const serverPath = `${process.env.CLOUD_URL}/blogs/covers/`;
-	const {fileName, fileURI} = await convertFile(req.file!); //multer got us covered
+	const { fileName, fileURI } = await convertFile(req.file!); //multer got us covered
 
 	if (error) {
 		await deleteFile(fileName, "cover");
@@ -424,7 +428,7 @@ blogRouter.post("/", verifyToken, uploadFile.single("imageFile"), async (req, re
 					receiver: follower._id,
 					icon: "icon-Description"
 				}).save();
-				
+
 				io.to(follower._id as string).emit("notification", `${(req as CustomRequest).user.name} just uploaded!`);
 			}
 		});
@@ -679,9 +683,9 @@ blogRouter.put("", verifyToken, uploadFile.single("imageFile"), async (req, res)
 
 	const serverPath = `${process.env.CLOUD_URL}/blogs/covers/`;
 
-	const {fileName, fileURI} = await convertFile(req.file!); //multer got us covered
+	const { fileName, fileURI } = await convertFile(req.file!); //multer got us covered
 
-	if (error && fileName) {
+	if (error) {
 		return res.status(400).json({
 			success: false,
 			message: error.details[0].message,
@@ -699,7 +703,7 @@ blogRouter.put("", verifyToken, uploadFile.single("imageFile"), async (req, res)
 			});
 		}
 
-		if (fileName) {
+		if (fileName !== "") {
 			const coverImageName = targetBlog?.coverImage.split("/") as string[];
 			await deleteFromCloud(coverImageName[coverImageName?.length - 1] as string, "cover");
 			await uploadToCloud2(fileURI, fileName, "cover");
@@ -770,12 +774,54 @@ blogRouter.get("/getblogs/:userId", async (req, res) => {
 	}
 });
 
-blogRouter.get("/search", async (req, res) => {
+blogRouter.post("/search", async (req, res) => {
 	const searchString = escapeStringRegexp(req.query.title as string || "");
+
+	let findConfig : Object = {title: { $regex: searchString, $options: 'i' }};
+	let sortConfig : any = {
+		time: "desc"
+	};
 	try {
-		const result = await BlogModel.find({ title: { $regex: searchString, $options: 'i' } }).select({ content: 0 }).populate("author", {
-			name: 1
-		});
+		if (req.body.orderBy === "A-Z") {
+			sortConfig = {
+				title: "desc"
+			}
+		} else if (req.body.orderBy === "Most likes") {
+			sortConfig = {
+				likesCount: "desc"
+			}
+		} else if (req.body.orderBy === "Most dislikes") {
+			sortConfig = {
+				dislikesCount: "desc"
+			}
+		} else if (req.body.orderBy === "Oldest") {
+			sortConfig = {
+				time: "asc"
+			}
+		} else if (req.body.orderBy === "Most views") {
+			sortConfig = {
+				viewsCount: "desc"
+			}
+		}
+
+		if (req.body.categories.length > 0 ) {
+			findConfig = { 
+				title: { $regex: searchString, $options: 'i' },
+				categories: {
+					"$in": req.body.categories
+				}
+			}
+		}
+
+		const result = await BlogModel.find(findConfig)
+			.select({ content: 0, likedBy: 0, dislikedBy: 0, commentsCount: 0 })
+			.populate("author", {
+				name: 1
+			})
+			.sort(sortConfig)
+			.limit(parseInt(req.query.limit as string))
+			.skip(parseInt(req.query.skip as string));
+
 		return res.status(200).send({
 			success: true,
 			message: "List of blogs",

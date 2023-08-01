@@ -16,7 +16,14 @@ export const FILE_TYPE_MAP = {
 	"image/webp": "webp"
 }
 
-export const convertFile = async (file: Express.Multer.File) => {
+export async function convertFile(file: Express.Multer.File) {
+	if (!file) {
+		return {
+			fileName: "",
+			fileURI: ""
+		}
+	}
+
 	const b64 = Buffer.from(file.buffer).toString("base64");
 	let dataURI = "data:" + file.mimetype + ";base64," + b64;
 
