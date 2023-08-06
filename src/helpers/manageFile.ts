@@ -28,7 +28,7 @@ export async function convertFile(file: Express.Multer.File) {
 	let dataURI = "data:" + file.mimetype + ";base64," + b64;
 
 	const extension = FILE_TYPE_MAP[file.mimetype as "image/png" | "image/jpg" | "image/jpeg" | "image/webp"];;
-	const fileName = file.originalname.replace(' ', '-');
+	const fileName = file.originalname.split(".")[0].replace(' ', '-');
 
 	return {
 		fileName: `${fileName.substring(0, fileName.lastIndexOf('.'))}-${Date.now()}.${extension}`,
